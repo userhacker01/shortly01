@@ -116,7 +116,7 @@ jobs:
             source ~/.lab.env
             gunzip -c ~/image.tgz | docker load
             docker rm -f shortly || true
-            docker run -d --name shortly -p "$APP_PORT":443 \
+            docker run -d --name shortly -p "$APP_PORT":3000 \
               -v shortly-data:/app/data --env-file ~/shortly.env \
               --security-opt no-new-privileges --memory 256m --pids-limit 200 \
               --restart unless-stopped "shortly:$GITHUB_SHA"
@@ -125,7 +125,7 @@ jobs:
               echo "health $i: $s"; [ "$s" = healthy ] && break; sleep 3
             done
             for i in $(seq 1 10); do
-              code=$(curl -ks -o /dev/null -w '%{http_code}' https://127.0.0.1:"$APP_PORT"/healthz || true)
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:"$APP_PORT"/healthz || true)
               echo "tls check $i: $code"; [ "$code" = 200 ] && exit 0; sleep 3
             done
             docker logs --tail 30 shortly; exit 1
