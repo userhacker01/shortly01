@@ -59,22 +59,31 @@ jobs:
             image.tgz.sha256
 
   # ---- Gate 4 (S5): DAST against the running image (behind nginx+TLS); advisory ----
+    # ---- Gate 4: DAST ----
   dast:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { name: shortly-image }
+        with:
+          name: shortly-image
+
       - name: Load + run the image
         run: |
           gunzip -c image.tgz | docker load
-          docker run -d --name shortly -p 8443:443 -e ADMIN_TOKEN=ci-token "shortly:$GITHUB_SHA"
-          for i in $(seq 1 30); do curl -ks https://localhost:8443/healthz && break || sleep 2; done
-      - name: ZAP baseline (DAST over TLS)
+          docker run -d --name shortly -p 8443:3000 \
+            -e ADMIN_TOKEN=ci-token "shortly:$GITHUB_SHA"
+
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8443/healthz && break
+            sleep 2
+          done
+
+      - name: ZAP baseline (DAST)
         uses: zaproxy/action-baseline@v0.15.0
         with:
-          target: https://localhost:8443
+          target: http://localhost:8443
           fail_action: false
           allow_issue_writing: false
 
